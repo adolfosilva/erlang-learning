@@ -1,4 +1,5 @@
 -module(geometry).
+-author("Adolfo Silva").
 -export([area/0, area/1]).
 
 % Calculates the area of a shape
