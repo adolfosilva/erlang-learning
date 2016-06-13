@@ -23,30 +23,42 @@ init() -> spawn(vm, loop, [new_vm()]).
 loop(State) ->
   receive
     {From, state} -> % for debugging purposes
-      From ! {self(), {ok, State}};
+      send_state(From, State);
     {From, list} ->
-      From ! {self(), {ok, [Product || {Product, _,_ } <- State#vm.products]}};
+      send_product_list(From, State#vm.products);
     {From, {price, Product}} ->
-      case lists:keyfind(Product, 1, State#vm.products) of
-        false -> From ! {self(), {error, "No such product"}};
-        {Product, _, Price} -> From ! {self(), {ok, Price}}
-      end;
+      send_products_price(From, State#vm.products, Product);
     {From, {buy, Product, Amount}} ->
-      % Check if we have the product
-      case lists:keyfind(Product, 1, State#vm.products) of
-        {_, _, Price} when Amount < Price -> % Check if the Amount given by the user is enough
-          From ! {self(), {error, "Not enough money"}};
-        {Product, Quantity, _} when Quantity =< 0 ->
-          From ! {self(), {error, lists:concat(["Out of ", Product])}};
-        {Product, Quantity, Price} ->
-          case lists:keyreplace(Product, 1, State#vm.products, {Product, Quantity-1, Price}) of
-            [] -> From ! {self(), {error, "No such product"}};
-            Products ->
-              From ! {self(), {ok, Product}},
-              loop(#vm{products = Products, money = State#vm.money})
-          end;
-        false -> % Couldn't find the product
-          From ! {self(), {error, "No such product"}}
-      end
+      send_buy_product(From, State, Product, Amount)
   end,
   loop(State).
+
+send_state(From, State) ->
+  From ! {self(), {ok, State}}.
+
+send_product_list(From, Products) ->
+  From ! {self(), {ok, [Product || {Product, _,_ } <- Products]}}.
+
+send_products_price(From, Products, Product) ->
+  case lists:keyfind(Product, 1, Products) of
+    false -> From ! {self(), {error, "No such product"}};
+    {Product, _, Price} -> From ! {self(), {ok, Price}}
+  end.
+
+send_buy_product(From, State, Product, Amount) ->
+  % Check if we have the product
+  case lists:keyfind(Product, 1, State#vm.products) of
+    {_, _, Price} when Amount < Price -> % Check if the Amount given by the user is enough
+      From ! {self(), {error, "Not enough money"}};
+    {Product, Quantity, _} when Quantity =< 0 ->
+      From ! {self(), {error, lists:concat(["Out of ", Product])}};
+    {Product, Quantity, Price} ->
+      case lists:keyreplace(Product, 1, State#vm.products, {Product, Quantity-1, Price}) of
+        [] -> From ! {self(), {error, "No such product"}};
+        Products ->
+          From ! {self(), {ok, Product}},
+          loop(#vm{products = Products, money = State#vm.money})
+      end;
+    false -> % Couldn't find the product
+      From ! {self(), {error, "No such product"}}
+  end.
