@@ -36,6 +36,8 @@ loop(State) ->
       case lists:keyfind(Product, 1, State#vm.products) of
         {_, _, Price} when Amount < Price -> % Check if the Amount given by the user is enough
           From ! {self(), {error, "Not enough money"}};
+        {Product, Quantity, _} when Quantity =< 0 ->
+          From ! {self(), {error, lists:concat(["Out of ", Product])}};
         {Product, Quantity, Price} ->
           case lists:keyreplace(Product, 1, State#vm.products, {Product, Quantity-1, Price}) of
             [] -> From ! {self(), {error, "No such product"}};
