@@ -35,21 +35,22 @@ loop(State) ->
     {From, {buy, Product, Amount}} ->
       send_buy_product(From, State, Product, Amount)
   after ?TIMEOUT ->
-    io:format("No one care about an ol' vending machine. Oh well..."),
+    io:format("No one cares about an ol' vending machine. Oh well...~n"),
     exit(timeout)
   end,
   loop(State).
 
 send_state(From, State) ->
-  From ! {self(), {ok, State}}.
+  From ! {self(), {ok, {state, State}}}.
 
 send_product_list(From, Products) ->
-  From ! {self(), {ok, [Product || {Product, _,_ } <- Products]}}.
+  From ! {self(), {ok, {products, [Product || {Product, _,_ } <- Products]}}}.
 
 send_products_price(From, Products, Product) ->
   case lists:keyfind(Product, 1, Products) of
     false -> From ! {self(), {error, "No such product"}};
-    {Product, _, Price} -> From ! {self(), {ok, Price}}
+    {Product, _, Price} ->
+      From ! {self(), {ok, {price, Price}}}
   end.
 
 send_buy_product(From, State, Product, Amount) ->
@@ -63,7 +64,7 @@ send_buy_product(From, State, Product, Amount) ->
       case lists:keyreplace(Product, 1, State#vm.products, {Product, Quantity-1, Price}) of
         [] -> From ! {self(), {error, "No such product"}};
         Products ->
-          From ! {self(), {ok, Product}},
+          From ! {self(), {ok, {product, Product}}},
           loop(#vm{products = Products, money = State#vm.money})
       end;
     false -> % Couldn't find the product
